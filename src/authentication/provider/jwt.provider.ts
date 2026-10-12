@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from "@nestjs/jwt"
 import { User } from 'src/users/entities/user.entity';
@@ -11,13 +11,13 @@ export class JwtProvider {
         private readonly jwtService:JwtService
     ){}
 
-    public async signToken<T>(userId:string,exp:string,payload?:T){
+    public async signToken<T>(userId:string,exp:string,secret:string,payload?:T){
 
         const token = this.jwtService.sign({
             sub:userId,
             ...payload
         },{
-            secret:this.configService.get<string>("JWT_SECRET"),
+            secret,
             expiresIn:Number(exp)
         })
 
@@ -28,11 +28,24 @@ export class JwtProvider {
     public async generateTokens(user:User|ITokenUser){
         const [acessToken,refreshToken] =await  Promise.all(
             [
-                 this.signToken(user.id,this.configService.getOrThrow("JWT_ACCESS_TOKEN_TTL"),{email:user.email}),
-                 this.signToken(user.id,this.configService.getOrThrow("JWT_REFRESH_TOKEN_TTL")),
+                 this.signToken(user.id,this.configService.getOrThrow("JWT_ACCESS_TOKEN_TTL"),this.configService.getOrThrow("JWT_ACCESS_SECRET"),{email:user.email}),
+                 this.signToken(user.id,this.configService.getOrThrow("JWT_ACCESS_TOKEN_TTL"),this.configService.getOrThrow("JWT_REFRESH_SECRET"),),
             ]
         )
 
         return {acessToken,refreshToken};
+    }
+
+    public async verifyToken(token:string,secret:string){
+        try {
+            return await this.jwtService.verifyAsync(token,
+                {
+                    secret
+    
+                });
+        } catch (error) {
+            throw new UnauthorizedException("Invalid token..")
+            
+        }
     }
 }

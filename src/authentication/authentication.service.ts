@@ -37,8 +37,11 @@ export class AuthenticationService {
       throw new BadRequestException("No password sent..")
     };
 
+    console.log("u1")
+
 
     const userExists = await this.findUserProvider.findUserExists(registerDTO.email);
+    console.log("u2",userExists)
 
     if (userExists) {
       throw new BadRequestException("User already exists.")
@@ -118,5 +121,19 @@ export class AuthenticationService {
 
 
     
+  }
+
+  async logout(refreshToken:string){
+    const key = this.generateRedisKeyRefreshToken(refreshToken);
+
+try {
+      await this.redis.del(key);
+      return "OK";
+  
+} catch (error) {
+  throw new InternalServerErrorException("Failed to delete sessionId")
+}
+
+
   }
 }
